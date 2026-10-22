@@ -459,6 +459,12 @@ def _load_json(path: str) -> dict:
     except json.JSONDecodeError as e:
         click.echo(f"ERROR: invalid JSON in {path}: {e}", err=True)
         sys.exit(2)
+    except (OSError, UnicodeDecodeError) as e:
+        # A missing/unreadable file or non-UTF-8 bytes is a bad *input*, not a
+        # failing attestation: report it as exit 2, the code the README
+        # documents for malformed input, rather than an unhandled traceback.
+        click.echo(f"ERROR: cannot read {path}: {e}", err=True)
+        sys.exit(2)
 
 
 def _parse_attestation(data) -> Attestation:
