@@ -9,6 +9,7 @@ from typing import Any
 from .models import (
     DEFAULT_MAX_SKEW_SECONDS,
     STATUS_DRIFTED,
+    STATUS_OK,
     STATUS_UNATTESTED,
     Attestation,
     AttestationValidator,
@@ -171,6 +172,12 @@ def _check_state_drift(server_config: dict, result: ValidationResult) -> None:
     against, so the check is surfaced as a warning rather than silently skipped:
     a receipt that cannot detect drift is a fact the operator should see, and
     an empty digest is not the same as a matching one.
+
+    A drift finding never masks a higher-priority verdict: an expired,
+    invalid or otherwise non-OK attestation that also drifted keeps its own
+    ``status`` (the actionable classification — re-issue, or investigate
+    authenticity) and the drift is recorded as an error alongside it, so an
+    operator can still see both facts.
     """
     att = result.attestation
     declared = {
@@ -191,4 +198,5 @@ def _check_state_drift(server_config: dict, result: ValidationResult) -> None:
             f"{att.state_hash}, but the server's declared surface "
             f"(command/args/tools) hashes to {actual}"
         )
-        result.status = STATUS_DRIFTED
+        if result.status == STATUS_OK:
+            result.status = STATUS_DRIFTED

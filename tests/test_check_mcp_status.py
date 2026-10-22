@@ -113,6 +113,47 @@ class TestAbsenceIsNotStaleness:
         assert not any("Missing TTL" in err for err in result.errors)
 
 
+class TestDriftDoesNotMaskOtherVerdicts:
+    """Drift is a finding, not a reclassification: a verdict that already says
+    what is actionable (re-issue, investigate authenticity) must survive a
+    surface change too — the drift error is recorded alongside it (issue #60)."""
+
+    def test_expired_plus_drift_stays_expired(self, tmp_path):
+        path = _write(
+            tmp_path,
+            _attested(
+                state_hash=_hash_of(SURFACE),
+                age=900,
+                ttl_seconds=60,
+                args=["-y", "@modelcontextprotocol/server-filesystem", "/"],
+            ),
+        )
+
+        (result,) = check_mcp(str(path))
+
+        assert result.status == STATUS_EXPIRED
+        assert result.is_stale is True
+        # The drift fact is still recorded for the operator.
+        assert any("drift" in err for err in result.errors)
+
+    def test_cli_prints_stale_not_drifted_when_both_apply(self, tmp_path):
+        path = _write(
+            tmp_path,
+            _attested(
+                state_hash=_hash_of(SURFACE),
+                age=900,
+                ttl_seconds=60,
+                args=["-y", "@modelcontextprotocol/server-filesystem", "/"],
+            ),
+        )
+
+        result = CliRunner().invoke(cli, ["check-mcp", str(path)])
+
+        assert result.exit_code == 1, result.output
+        assert "STALE" in result.output
+        assert "DRIFTED" not in result.output
+
+
 class TestUnattestedReachesTheCaller:
     def test_cli_prints_unattested_not_stale(self, tmp_path):
         path = _write(tmp_path, dict(SURFACE))
