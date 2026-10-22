@@ -25,7 +25,11 @@ jobs:
           ruff check .
 
   test:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest now resolves to ubuntu-26.04, whose runner image no
+    # longer ships Python 3.9 in its cache. This repo still supports 3.9
+    # (python_requires=">=3.9"), so the matrix must keep it and the runner must
+    # be pinned to a release that still provides it.
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
